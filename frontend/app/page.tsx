@@ -1,61 +1,104 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { generateRoomCode, isValidRoomCode } from '@/lib/utils/roomUtils';
+import PageContainer from '@/components/layout/PageContainer';
 import Button from '@/components/ui/Button';
+import { User } from '@/types';
+import socketClient from '@/lib/socket';
 
-export default function Home() {
+export default function HomePage() {
   const router = useRouter();
   const [roomCode, setRoomCode] = useState('');
   const [username, setUsername] = useState('');
-  const [error, setError] = useState('');
+  const [error, setError] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
 
-  const handleCreateRoom = async () => {
+  useEffect(() => {
+    // Check if username is already stored
+    const storedUsername = localStorage.getItem('username');
+    if (storedUsername) {
+      setUsername(storedUsername);
+    }
+    
+    // Set up socket event listeners
+    socketClient.onRoomCreated((room) => {
+      setIsCreating(false);
+      router.push(`/room?code=${room.code}`);
+    });
+    
+    socketClient.onError((error) => {
+      setError(error.message);
+      setIsCreating(false);
+      setIsJoining(false);
+    });
+    
+    // Clean up event listeners on unmount
+    return () => {
+      socketClient.offRoomCreated(() => {});
+      socketClient.offError(() => {});
+    };
+  }, [router]);
+
+  const handleCreateRoom = () => {
     if (!username.trim()) {
       setError('Please enter a username');
       return;
     }
-
+    
+    setError(null);
     setIsCreating(true);
-    try {
-      // Generate a room code and navigate to the room
-      const newRoomCode = generateRoomCode();
-      localStorage.setItem('username', username);
-      router.push(`/room?code=${newRoomCode}`);
-    } catch (err) {
-      setError('Failed to create room. Please try again.');
-      setIsCreating(false);
-    }
+    
+    // Store username in localStorage
+    localStorage.setItem('username', username);
+    
+    // Get userId from localStorage or create a new one
+    const userId = localStorage.getItem('userId') || crypto.randomUUID();
+    localStorage.setItem('userId', userId);
+    
+    const user: User = {
+      id: userId,
+      username,
+      isConnected: true,
+    };
+    
+    // Create a new room
+    socketClient.createRoom(user, 4);
   };
 
-  const handleJoinRoom = async () => {
+  const handleJoinRoom = () => {
     if (!username.trim()) {
       setError('Please enter a username');
       return;
     }
-
+    
     if (!roomCode.trim()) {
       setError('Please enter a room code');
       return;
     }
-
-    if (!isValidRoomCode(roomCode.toUpperCase())) {
-      setError('Invalid room code format');
-      return;
-    }
-
+    
+    setError(null);
     setIsJoining(true);
-    try {
-      // Navigate to the room
-      localStorage.setItem('username', username);
-      router.push(`/room?code=${roomCode.toUpperCase()}`);
-    } catch (err) {
-      setError('Failed to join room. Please try again.');
-      setIsJoining(false);
-    }
+    
+    // Store username in localStorage
+    localStorage.setItem('username', username);
+    
+    // Get userId from localStorage or create a new one
+    const userId = localStorage.getItem('userId') || crypto.randomUUID();
+    localStorage.setItem('userId', userId);
+    
+    const user: User = {
+      id: userId,
+      username,
+      isConnected: true,
+    };
+    
+    // Join the room
+    socketClient.joinRoom(roomCode, user);
+    
+    // Navigate to the room page
+    router.push(`/room?code=${roomCode}`);
   };
 
   const handleBrowseRooms = () => {
@@ -63,91 +106,85 @@ export default function Home() {
       setError('Please enter a username to browse rooms');
       return;
     }
-
+    
+    // Store username in localStorage
     localStorage.setItem('username', username);
+    
+    // Navigate to the lobby page
     router.push('/lobby');
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-gradient-to-b from-gray-900 to-gray-800 text-white">
-      <div className="w-full max-w-md p-8 space-y-8 bg-gray-800 rounded-xl shadow-2xl">
-        <div className="text-center">
-          <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600">
-            BeatBattles
-          </h1>
-          <p className="mt-2 text-gray-300">
-            Create and battle with music in real-time
-          </p>
-        </div>
-
-        <div className="space-y-4">
-          <div>
-            <label htmlFor="username" className="block text-sm font-medium text-gray-300">
-              Username
+    <PageContainer maxWidth="sm">
+      <div className="flex flex-col items-center justify-center min-h-[80vh] w-full">
+        <div className="w-full max-w-md p-8 bg-white rounded-lg shadow-lg">
+          <h1 className="text-3xl font-bold text-center mb-6">BeatBattles</h1>
+          
+          <div className="mb-6">
+            <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
+              Your Name
             </label>
             <input
-              id="username"
               type="text"
+              id="username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full px-3 py-2 mt-1 text-gray-900 bg-gray-100 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-              placeholder="Enter your username"
-              maxLength={20}
+              placeholder="Enter your name"
+              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={isCreating || isJoining}
             />
           </div>
-
-          <div>
-            <label htmlFor="roomCode" className="block text-sm font-medium text-gray-300">
-              Room Code (to join existing room)
+          
+          <div className="mb-6">
+            <label htmlFor="roomCode" className="block text-sm font-medium text-gray-700 mb-1">
+              Room Code
             </label>
             <input
-              id="roomCode"
               type="text"
+              id="roomCode"
               value={roomCode}
               onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
-              className="w-full px-3 py-2 mt-1 text-gray-900 bg-gray-100 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-              placeholder="e.g. ABC123"
-              maxLength={6}
+              placeholder="Enter room code"
+              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={isCreating || isJoining}
             />
           </div>
-
+          
           {error && (
-            <div className="p-2 text-sm text-red-500 bg-red-100 rounded-md">
+            <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
               {error}
             </div>
           )}
-
-          <div className="flex flex-col space-y-3 pt-2">
+          
+          <div className="flex flex-col space-y-3">
             <Button
-              variant="gradient"
-              fullWidth
               onClick={handleCreateRoom}
-              isLoading={isCreating}
+              disabled={isCreating || isJoining || !username.trim()}
+              className="w-full"
             >
-              Create New Room
+              {isCreating ? 'Creating Room...' : 'Create New Room'}
             </Button>
+            
             <Button
-              variant="secondary"
-              fullWidth
               onClick={handleJoinRoom}
-              isLoading={isJoining}
+              disabled={isCreating || isJoining || !username.trim() || !roomCode.trim()}
+              variant="secondary"
+              className="w-full"
             >
-              Join Room
+              {isJoining ? 'Joining Room...' : 'Join Room'}
             </Button>
+            
             <Button
-              variant="primary"
-              fullWidth
               onClick={handleBrowseRooms}
+              disabled={isCreating || isJoining || !username.trim()}
+              variant="outline"
+              className="w-full"
             >
               Browse Rooms
             </Button>
           </div>
         </div>
-
-        <div className="mt-6 text-center text-xs text-gray-400">
-          <p>Join a room to create and vote on 8-bar musical snippets</p>
-        </div>
       </div>
-    </div>
+    </PageContainer>
   );
 }

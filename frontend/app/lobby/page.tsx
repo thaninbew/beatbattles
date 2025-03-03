@@ -2,42 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { formatRoomCode } from '@/lib/utils/roomUtils';
-import { Room } from '@/lib/types';
 import PageContainer from '@/components/layout/PageContainer';
 import Button from '@/components/ui/Button';
-
-// Mock data for available rooms
-const mockRooms: Room[] = [
-  {
-    id: '1',
-    code: 'ABC123',
-    status: 'waiting' as any,
-    hostId: 'user_1',
-    players: [{ id: 'user_1', username: 'Player1' }],
-    maxPlayers: 10,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  },
-  {
-    id: '2',
-    code: 'DEF456',
-    status: 'waiting' as any,
-    hostId: 'user_2',
-    players: [
-      { id: 'user_2', username: 'Player2' },
-      { id: 'user_3', username: 'Player3' },
-    ],
-    maxPlayers: 10,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  },
-];
+import { Room, User, RoomStatus } from '@/types';
+import socketClient from '@/lib/socket';
 
 export default function LobbyPage() {
   const router = useRouter();
   const [rooms, setRooms] = useState<Room[]>([]);
-  const [username, setUsername] = useState('');
+  const [username, setUsername] = useState<string>('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -47,30 +20,110 @@ export default function LobbyPage() {
       router.push('/');
       return;
     }
+    
     setUsername(storedUsername);
-
-    // In a real app, we would fetch rooms from the server
-    // For now, use mock data
+    
+    // In a real implementation, we would fetch rooms from the server
+    // For now, we'll use mock data
+    const mockRooms: Room[] = [
+      {
+        id: '1',
+        code: 'ABC123',
+        status: RoomStatus.WAITING,
+        hostId: 'host1',
+        players: [
+          { id: 'host1', username: 'Host1', isConnected: true },
+          { id: 'player1', username: 'Player1', isConnected: true },
+        ],
+        maxPlayers: 4,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        id: '2',
+        code: 'DEF456',
+        status: RoomStatus.WAITING,
+        hostId: 'host2',
+        players: [
+          { id: 'host2', username: 'Host2', isConnected: true },
+        ],
+        maxPlayers: 6,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ];
+    
     setRooms(mockRooms);
     setLoading(false);
+    
+    // In a real implementation, we would listen for room updates
+    // socketClient.onRoomUpdated((updatedRoom) => {
+    //   setRooms(prevRooms => {
+    //     const roomIndex = prevRooms.findIndex(r => r.id === updatedRoom.id);
+    //     if (roomIndex >= 0) {
+    //       const newRooms = [...prevRooms];
+    //       newRooms[roomIndex] = updatedRoom;
+    //       return newRooms;
+    //     } else {
+    //       return [...prevRooms, updatedRoom];
+    //     }
+    //   });
+    // });
+    
+    // return () => {
+    //   socketClient.offRoomUpdated(() => {});
+    // };
   }, [router]);
 
   const handleJoinRoom = (roomCode: string) => {
+    // Get userId from localStorage or create a new one
+    const userId = localStorage.getItem('userId') || crypto.randomUUID();
+    localStorage.setItem('userId', userId);
+    
+    const user: User = {
+      id: userId,
+      username,
+      isConnected: true,
+    };
+    
+    // Join the room
+    socketClient.joinRoom(roomCode, user);
+    
+    // Navigate to the room page
     router.push(`/room?code=${roomCode}`);
   };
 
   const handleCreateRoom = () => {
-    router.push('/');
+    // Get userId from localStorage or create a new one
+    const userId = localStorage.getItem('userId') || crypto.randomUUID();
+    localStorage.setItem('userId', userId);
+    
+    const user: User = {
+      id: userId,
+      username,
+      isConnected: true,
+    };
+    
+    // Create a new room
+    socketClient.createRoom(user, 4);
+    
+    // Listen for room created event
+    socketClient.onRoomCreated((room) => {
+      router.push(`/room?code=${room.code}`);
+    });
+    
+    // Clean up event listener
+    return () => {
+      socketClient.offRoomCreated(() => {});
+    };
   };
 
   if (loading) {
     return (
       <PageContainer>
-        <div className="flex items-center justify-center min-h-[80vh]">
-          <div className="text-center">
-            <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
-            <p className="mt-4 text-xl text-white">Loading rooms...</p>
-          </div>
+        <div className="flex flex-col items-center justify-center min-h-[60vh]">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mb-4"></div>
+          <p className="text-lg">Loading rooms...</p>
         </div>
       </PageContainer>
     );
@@ -78,54 +131,47 @@ export default function LobbyPage() {
 
   return (
     <PageContainer>
-      <header className="flex justify-between items-center mb-8 p-4 bg-gray-800 rounded-lg">
-        <h1 className="text-2xl font-bold">BeatBattles Lobby</h1>
-        <div className="flex items-center space-x-4">
-          <p className="font-medium">Welcome, {username}</p>
-          <Button 
-            variant="gradient" 
-            onClick={handleCreateRoom}
-          >
-            Create Room
-          </Button>
-        </div>
-      </header>
-
-      <main className="bg-gray-800 rounded-lg p-6">
-        <h2 className="text-xl font-bold mb-6">Available Rooms</h2>
-        
-        {rooms.length === 0 ? (
-          <div className="text-center py-12 text-gray-400">
-            <p>No rooms available. Create a new room to get started!</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold mb-2">Available Rooms</h1>
+        <p className="text-gray-600">Join an existing room or create a new one</p>
+      </div>
+      
+      <div className="mb-6">
+        <Button onClick={handleCreateRoom} className="w-full md:w-auto">
+          Create New Room
+        </Button>
+      </div>
+      
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        {rooms.length > 0 ? (
+          <div className="divide-y divide-gray-200">
             {rooms.map((room) => (
-              <div key={room.id} className="bg-gray-700 p-4 rounded-lg">
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <h3 className="font-bold text-lg">{formatRoomCode(room.code)}</h3>
-                    <p className="text-sm text-gray-400">Host: {room.players.find(p => p.id === room.hostId)?.username}</p>
-                  </div>
-                  <span className="px-2 py-1 bg-green-500 text-xs rounded-full">
-                    {room.status}
-                  </span>
+              <div key={room.id} className="p-4 flex justify-between items-center">
+                <div>
+                  <h3 className="font-medium">Room: {room.code}</h3>
+                  <p className="text-sm text-gray-500">
+                    Players: {room.players.length}/{room.maxPlayers} • 
+                    Host: {room.players.find(p => p.id === room.hostId)?.username}
+                  </p>
                 </div>
-                <div className="flex justify-between items-center">
-                  <p className="text-sm">{room.players.length}/{room.maxPlayers} players</p>
-                  <Button 
-                    variant="primary" 
-                    size="sm" 
-                    onClick={() => handleJoinRoom(room.code)}
-                  >
-                    Join
-                  </Button>
-                </div>
+                <Button 
+                  onClick={() => handleJoinRoom(room.code)}
+                  variant="outline"
+                >
+                  Join
+                </Button>
               </div>
             ))}
           </div>
+        ) : (
+          <div className="p-8 text-center">
+            <p className="text-gray-500 mb-4">No rooms available</p>
+            <Button onClick={handleCreateRoom}>
+              Create a Room
+            </Button>
+          </div>
         )}
-      </main>
+      </div>
     </PageContainer>
   );
 } 
