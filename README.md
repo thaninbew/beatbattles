@@ -6,7 +6,7 @@ BeatBattles is a multiplayer music game where up to 10 players join a room—eit
 
 - **Multiplayer Competition:** Up to 10 players can join a game room and compete in rounds.
 - **Musical Creativity:** In each round, players are tasked with creating a short musical piece that fits a given theme.
-- **DAW Interface:** Players use a digital audio workstation (DAW)-style interface, simplified for beginners yet offering a high skill ceiling. Initially, the game supports four core instruments: Drums, Piano Chords, Melody, and Bass.
+- **DAW Interface:** Players use a digital audio workstation (DAW)-style interface, simplified for beginners yet offering a high skill ceiling. In this intial stage, the game supports: Drums, Piano Chords, Melody (single note synth), and Bass.
 - **Voting & Results:** After each round, song snippets are played back for a timed voting period. The game then displays the results and overall rankings.
 
 ## Tech Stack
