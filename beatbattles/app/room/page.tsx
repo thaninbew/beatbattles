@@ -5,7 +5,9 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import PageContainer from '@/components/layout/PageContainer';
 import RoomHeader from '@/components/room/RoomHeader';
 import WaitingRoom from '@/components/room/WaitingRoom';
-import { Room, RoomStatus, User } from '@/types';
+import { DAWContainer } from '@/components/game/daw';
+import { Room, RoomStatus, User, Composition } from '@/types';
+import { Composition as DAWComposition } from '@/lib/types';
 import socketClient from '@/lib/socket';
 
 export default function RoomPage() {
@@ -15,6 +17,7 @@ export default function RoomPage() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [composition, setComposition] = useState<Composition | null>(null);
 
   useEffect(() => {
     // Get room code from URL
@@ -78,6 +81,34 @@ export default function RoomPage() {
     }
   };
 
+  const handleSaveComposition = (dawComposition: DAWComposition) => {
+    // Convert from lib/types Composition to types Composition
+    const adaptedComposition: Composition = {
+      id: crypto.randomUUID(),
+      userId: dawComposition.userId,
+      roomId: room?.id || '',
+      tracks: dawComposition.tracks.map(track => ({
+        id: track.id,
+        instrumentId: track.instrumentType,
+        notes: track.notes,
+        isMuted: track.muted,
+        volume: track.volume,
+        pan: 0
+      })),
+      bpm: dawComposition.bpm,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    
+    setComposition(adaptedComposition);
+    
+    // In a real implementation, we would send this to the server
+    console.log('Composition saved:', adaptedComposition);
+    
+    // Example of how to send to server (to be implemented)
+    // socketClient.saveComposition(room.code, user.id, adaptedComposition);
+  };
+
   if (loading) {
     return (
       <PageContainer>
@@ -124,6 +155,19 @@ export default function RoomPage() {
     );
   }
 
+  // Convert from types Composition to lib/types Composition for DAWContainer
+  const dawComposition = composition ? {
+    userId: composition.userId,
+    tracks: composition.tracks.map(track => ({
+      id: track.id,
+      instrumentType: track.instrumentId,
+      notes: track.notes,
+      volume: track.volume,
+      muted: track.isMuted
+    })),
+    bpm: composition.bpm
+  } as DAWComposition : undefined;
+
   return (
     <PageContainer>
       <RoomHeader 
@@ -142,9 +186,24 @@ export default function RoomPage() {
       
       {room.status === RoomStatus.COMPOSING && (
         <div className="mt-6">
-          <h2 className="text-2xl font-bold mb-4">Composition Phase</h2>
-          <p>This is where the DAW interface will go</p>
-          {/* DAW component will be added here */}
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-bold">Composition Phase</h2>
+            {room.theme && (
+              <div className="bg-blue-100 text-blue-800 px-4 py-2 rounded-lg">
+                <span className="font-semibold">Theme:</span> {room.theme}
+              </div>
+            )}
+          </div>
+          
+          <div className="bg-gray-800 rounded-lg overflow-hidden h-[70vh]">
+            {user && (
+              <DAWContainer 
+                userId={user.id}
+                initialComposition={dawComposition}
+                onSave={handleSaveComposition}
+              />
+            )}
+          </div>
         </div>
       )}
       
