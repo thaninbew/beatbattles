@@ -1,5 +1,4 @@
 import React from 'react';
-import { formatRoomCode } from '@/lib/utils/roomUtils';
 import { Room, User } from '@/lib/types';
 import PlayerList from './PlayerList';
 
@@ -20,7 +19,7 @@ const WaitingRoom: React.FC<WaitingRoomProps> = ({ room, currentUser, onStartGam
         <p className="mb-6">
           Share this code with friends: 
           <span className="font-mono text-xl bg-gray-700 px-3 py-1 rounded ml-2">
-            {formatRoomCode(room.code)}
+            {(room.code)}
           </span>
         </p>
       </div>

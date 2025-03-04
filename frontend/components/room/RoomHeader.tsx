@@ -1,5 +1,4 @@
 import React from 'react';
-import { formatRoomCode } from '@/lib/utils/roomUtils';
 import { Room, RoomStatus } from '@/lib/types';
 
 interface RoomHeaderProps {
@@ -27,7 +26,7 @@ const RoomHeader: React.FC<RoomHeaderProps> = ({ room, username, onLeaveRoom }) 
     <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 p-4 bg-gray-800 rounded-lg mb-6">
       <div>
         <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-bold">Room: {formatRoomCode(room.code)}</h1>
+          <h1 className="text-2xl font-bold">Room: {(room.code)}</h1>
           <span className={`px-2 py-1 text-xs rounded-full text-white ${statusColors[room.status as RoomStatus]}`}>
             {statusLabels[room.status as RoomStatus]}
           </span>
