@@ -1,11 +1,11 @@
-# BeatBattles Frontend
+# BeatBattles
 
-This is the frontend application for BeatBattles, built with Next.js, TypeScript, and Tailwind CSS.
+This is the NEXT application for BeatBattles, built with Next.js, TypeScript, and Tailwind CSS.
 
 ## Directory Structure
 
 ```
-frontend/
+beatbattles/
 ├── app/                 # Next.js app router pages
 │   ├── lobby/           # Lobby page for browsing rooms
 │   └── room/            # Room page for game sessions

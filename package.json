@@ -4,10 +4,10 @@
   "description": "A multiplayer music game where players create and vote on 8-bar song snippets",
   "main": "index.js",
   "scripts": {
-    "frontend": "cd frontend && npm run dev",
+    "beatbattles": "cd beatbattles && npm run dev",
     "server": "cd server && npm run dev",
-    "dev": "concurrently \"npm run server\" \"npm run frontend\"",
-    "install-all": "npm install && cd frontend && npm install && cd ../server && npm install"
+    "dev": "concurrently \"npm run server\" \"npm run beatbattles\"",
+    "install-all": "npm install && cd beatbattles && npm install && cd ../server && npm install"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"
