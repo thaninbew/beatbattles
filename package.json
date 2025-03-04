@@ -1,0 +1,15 @@
+{
+  "name": "beatbattles",
+  "version": "1.0.0",
+  "description": "A multiplayer music game where players create and vote on 8-bar song snippets",
+  "main": "index.js",
+  "scripts": {
+    "frontend": "cd frontend && npm run dev",
+    "server": "cd server && npm run dev",
+    "dev": "concurrently \"npm run server\" \"npm run frontend\"",
+    "install-all": "npm install && cd frontend && npm install && cd ../server && npm install"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

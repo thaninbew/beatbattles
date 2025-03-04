@@ -117,11 +117,11 @@ export default function HomePage() {
   return (
     <PageContainer maxWidth="sm">
       <div className="flex flex-col items-center justify-center min-h-[80vh] w-full">
-        <div className="w-full max-w-md p-8 bg-white rounded-lg shadow-lg">
-          <h1 className="text-3xl font-bold text-center mb-6">BeatBattles</h1>
+        <div className="w-full max-w-md p-8 bg-gray-800 rounded-lg shadow-lg border border-gray-700">
+          <h1 className="text-3xl font-bold text-center mb-6 text-white">BeatBattles</h1>
           
           <div className="mb-6">
-            <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="username" className="block text-sm font-medium text-gray-200 mb-1">
               Your Name
             </label>
             <input
@@ -130,13 +130,13 @@ export default function HomePage() {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               placeholder="Enter your name"
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-gray-700 border border-gray-600 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-400"
               disabled={isCreating || isJoining}
             />
           </div>
           
           <div className="mb-6">
-            <label htmlFor="roomCode" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="roomCode" className="block text-sm font-medium text-gray-200 mb-1">
               Room Code
             </label>
             <input
@@ -145,13 +145,13 @@ export default function HomePage() {
               value={roomCode}
               onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
               placeholder="Enter room code"
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-gray-700 border border-gray-600 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-400"
               disabled={isCreating || isJoining}
             />
           </div>
           
           {error && (
-            <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+            <div className="mb-4 p-3 bg-red-900 border border-red-700 text-red-100 rounded">
               {error}
             </div>
           )}

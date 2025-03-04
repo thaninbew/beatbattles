@@ -132,8 +132,8 @@ export default function LobbyPage() {
   return (
     <PageContainer>
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Available Rooms</h1>
-        <p className="text-gray-600">Join an existing room or create a new one</p>
+        <h1 className="text-3xl font-bold mb-2 text-white">Available Rooms</h1>
+        <p className="text-gray-300">Join an existing room or create a new one</p>
       </div>
       
       <div className="mb-6">
@@ -142,14 +142,14 @@ export default function LobbyPage() {
         </Button>
       </div>
       
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="bg-gray-800 rounded-lg shadow-lg border border-gray-700 overflow-hidden">
         {rooms.length > 0 ? (
-          <div className="divide-y divide-gray-200">
+          <div className="divide-y divide-gray-700">
             {rooms.map((room) => (
               <div key={room.id} className="p-4 flex justify-between items-center">
                 <div>
-                  <h3 className="font-medium">Room: {room.code}</h3>
-                  <p className="text-sm text-gray-500">
+                  <h3 className="font-medium text-white">Room: {room.code}</h3>
+                  <p className="text-sm text-gray-300">
                     Players: {room.players.length}/{room.maxPlayers} • 
                     Host: {room.players.find(p => p.id === room.hostId)?.username}
                   </p>
@@ -165,7 +165,7 @@ export default function LobbyPage() {
           </div>
         ) : (
           <div className="p-8 text-center">
-            <p className="text-gray-500 mb-4">No rooms available</p>
+            <p className="text-gray-300 mb-4">No rooms available</p>
             <Button onClick={handleCreateRoom}>
               Create a Room
             </Button>
