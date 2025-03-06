@@ -30,12 +30,3 @@ export const isValidRoomCode = (code: string): boolean => {
   return regex.test(code);
 };
 
-/**
- * Formats a room code for display (adds hyphens)
- * @param code The room code to format
- * @returns Formatted room code (e.g., "ABC-123")
- */
-export const formatRoomCode = (code: string): string => {
-  if (code.length !== 6) return code;
-  return `${code.slice(0, 3)}-${code.slice(3)}`;
-}; 
