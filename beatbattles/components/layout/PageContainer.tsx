@@ -1,4 +1,5 @@
 import React, { ReactNode } from 'react';
+import { cn } from '@/lib/utils';
 
 interface PageContainerProps {
   children: ReactNode;
@@ -21,8 +22,8 @@ const PageContainer: React.FC<PageContainerProps> = ({
   className = '',
 }) => {
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-4">
-      <div className={`mx-auto ${maxWidthClasses[maxWidth]} ${className}`}>
+    <div className="p-4">
+      <div className={cn(`mx-auto ${maxWidthClasses[maxWidth]}`, className)}>
         {children}
       </div>
     </div>

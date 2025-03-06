@@ -1,95 +1,116 @@
 # BeatBattles
 
-This is the NEXT application for BeatBattles, built with Next.js, TypeScript, and Tailwind CSS.
+BeatBattles is a multiplayer music game where players join a room and create 8-bar song snippets for a specific theme. After composing, snippets are looped and played back for voting.
 
-## Directory Structure
+## Project Overview
 
-```
-beatbattles/
-├── app/                 # Next.js app router pages
-│   ├── lobby/           # Lobby page for browsing rooms
-│   └── room/            # Room page for game sessions
-├── components/          # Reusable UI components
-│   ├── ui/              # Basic UI components (buttons, inputs, etc.)
-│   ├── game/            # Game-related components (DAW, tracks, etc.)
-│   ├── room/            # Room-related components (player list, etc.)
-│   └── layout/          # Layout components (containers, headers, etc.)
-├── lib/                 # Utility libraries and modules
-│   ├── audio/           # Tone.js integration for audio playback
-│   ├── socket/          # Socket.IO client for real-time communication
-│   ├── types/           # TypeScript type definitions
-│   └── utils/           # Helper functions
-└── public/              # Static assets
-```
+BeatBattles is built with:
+- Next.js 14 (App Router)
+- TypeScript
+- Tailwind CSS
+- Tone.js for audio synthesis
+- Socket.IO for real-time multiplayer
+- Supabase for data persistence
 
-## Key Components
+## Features
 
-### UI Components
+- **Digital Audio Workstation (DAW)**: Create music with a piano roll and drum grid
+- **Real-time Collaboration**: Join rooms with friends to battle
+- **Voting System**: Vote on the best compositions
+- **Responsive Design**: Works on desktop and tablet devices
 
-- **Button**: Reusable button component with various styles and states
-- **PageContainer**: Layout container for consistent page structure
-
-### Room Components
-
-- **RoomHeader**: Header component for room pages
-- **PlayerList**: Component for displaying the list of players in a room
-- **WaitingRoom**: Component for the waiting room state
-
-### Pages
-
-- **Home**: Landing page with options to create or join a room
-- **Lobby**: Page for browsing available rooms
-- **Room**: Page for the game room with different states (waiting, composing, voting, results)
-
-## Development
+## Getting Started
 
 ### Prerequisites
 
-- Node.js (v18 or later)
-- npm or yarn
+- Node.js 18+ and npm/yarn
+- Git
 
 ### Installation
 
-1. Install dependencies:
-   ```
-   npm install
-   ```
-
-2. Start the development server:
-   ```
-   npm run dev
-   ```
-
-3. Open [http://localhost:3000](http://localhost:3000) in your browser.
-
-### Building for Production
-
-```
-npm run build
+1. Clone the repository:
+```bash
+git clone https://github.com/yourusername/beatbattles.git
+cd beatbattles
 ```
 
-### Running Production Build
+2. Install dependencies:
+```bash
+npm install
+# or
+yarn install
+```
+
+3. Start the development server:
+```bash
+npm run dev
+# or
+yarn dev
+```
+
+4. Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+## Project Structure
 
 ```
-npm start
+beatbattles/
+├── app/                    # Next.js app router
+│   ├── demo/               # DAW demo page
+│   ├── room/               # Game room pages
+│   ├── lobby/              # Room lobby
+│   └── layout.tsx          # Root layout
+├── components/             # React components
+│   ├── audio/              # Audio-related components
+│   ├── game/               # Game-specific components
+│   │   └── daw/            # Digital Audio Workstation components
+│   ├── layout/             # Layout components
+│   └── ui/                 # Reusable UI components
+├── lib/                    # Utility functions and shared code
+│   ├── audio/              # Audio utilities
+│   ├── socket/             # Socket.IO client
+│   └── types.ts            # TypeScript types
+├── public/                 # Static assets
+└── server/                 # Server-side code
+    └── socket/             # Socket.IO server
 ```
 
-## Technologies Used
+## DAW Features
 
-- **Next.js**: React framework for server-rendered applications
-- **TypeScript**: Type-safe JavaScript
-- **Tailwind CSS**: Utility-first CSS framework
-- **Tone.js**: Web Audio framework for creating interactive music
-- **Socket.IO**: Library for real-time web applications
+The Digital Audio Workstation (DAW) includes:
 
-## Current Status
+- Piano Roll for melodic instruments
+- Drum Grid for percussion
+- Transport controls (play/stop, BPM)
+- Track management (add, select, mute)
+- Effects panel (coming soon)
+- Save/load compositions
 
-The frontend is currently in Stage 1 of development, with the following features implemented:
+## Development Roadmap
 
-- Basic UI components
-- Home page with room creation and joining
-- Lobby page for browsing rooms
-- Room page with waiting room state
-- Mock Socket.IO client for development
+- [x] Basic DAW implementation
+- [x] Audio synthesis with Tone.js
+- [x] Piano Roll and Drum Grid
+- [ ] Complete effects panel
+- [ ] Room creation and management
+- [ ] Voting system
+- [ ] User profiles and authentication
+- [ ] Composition history and sharing
 
-Next steps include implementing the actual Socket.IO integration, the DAW interface, and the voting system.
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Acknowledgments
+
+- [Tone.js](https://tonejs.github.io/) for audio synthesis
+- [Next.js](https://nextjs.org/) for the React framework
+- [Tailwind CSS](https://tailwindcss.com/) for styling
+- [Socket.IO](https://socket.io/) for real-time communication

@@ -1,257 +1,392 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { start, Transport, now } from 'tone';
-import { Track, Composition, Note } from '../../../lib/types';
 import { 
-  initializeToneContext, 
-  createMetronome, 
-  startTransport, 
-  stopTransport,
-  createSynth,
-  InstrumentType,
-  ToneAudioNode,
-  ToneLoop,
-  ToneInstrument
+  InstrumentType, 
+  createSynth, 
+  disposeToneResources,
+  playTrack
 } from '../../../lib/audio/toneUtils';
+import { useAudioContext } from '../../../lib/audio/AudioContextProvider';
+import { Note, Track, Composition } from '../../../lib/types';
 import TrackList from './TrackList';
+import TransportControls from './TransportControls';
 import PianoRoll from './PianoRoll';
 import DrumGrid from './instruments/DrumGrid';
-import TransportControls from './TransportControls';
+import Piano from './instruments/Piano';
+import Metronome from './Metronome';
+import EffectsPanel from './EffectsPanel';
 
 // Default instrument configurations
 const DEFAULT_INSTRUMENTS = [
-  { id: uuidv4(), name: 'Drums', type: InstrumentType.MEMBRANE_SYNTH },
-  { id: uuidv4(), name: 'Bass', type: InstrumentType.MONO_SYNTH },
-  { id: uuidv4(), name: 'Chords', type: InstrumentType.POLY_SYNTH },
-  { id: uuidv4(), name: 'Melody', type: InstrumentType.SYNTH },
+  { name: 'Synth', type: InstrumentType.SYNTH },
+  { name: 'FM Synth', type: InstrumentType.FM_SYNTH },
+  { name: 'AM Synth', type: InstrumentType.AM_SYNTH },
+  { name: 'Membrane Synth', type: InstrumentType.MEMBRANE_SYNTH },
+  { name: 'Metal Synth', type: InstrumentType.METAL_SYNTH },
+  { name: 'Mono Synth', type: InstrumentType.MONO_SYNTH },
+  { name: 'Pluck Synth', type: InstrumentType.PLUCK },
+  { name: 'Poly Synth', type: InstrumentType.POLY_SYNTH },
 ];
 
 interface DAWContainerProps {
   userId: string;
   initialComposition?: Composition;
   onSave?: (composition: Composition) => void;
+  readOnly?: boolean;
 }
 
-const DAWContainer = ({ userId, initialComposition, onSave }: DAWContainerProps) => {
-  // State for tracks and composition
+const DAWContainer: React.FC<DAWContainerProps> = ({
+  userId,
+  initialComposition,
+  onSave,
+  readOnly = false,
+}) => {
+  // Use the audio context
+  const { 
+    isInitialized, 
+    isPlaying, 
+    bpm, 
+    initialize, 
+    play, 
+    stop, 
+    setBpm 
+  } = useAudioContext();
+
+  // State for tracks
   const [tracks, setTracks] = useState<Track[]>(
-    initialComposition?.tracks || 
-    DEFAULT_INSTRUMENTS.map(instrument => ({
-      id: instrument.id,
-      instrumentType: instrument.type,
-      notes: [],
-      volume: 0,
-      muted: false
-    }))
+    initialComposition?.tracks || [
+      {
+        id: uuidv4(),
+        instrumentType: InstrumentType.SYNTH,
+        notes: [],
+        volume: 0.8,
+        muted: false,
+      },
+      {
+        id: uuidv4(),
+        instrumentType: InstrumentType.MEMBRANE_SYNTH,
+        notes: [],
+        volume: 0.8,
+        muted: false,
+      },
+    ]
   );
+
+  // State for selected track
+  const [selectedTrackId, setSelectedTrackId] = useState<string>(
+    tracks.length > 0 ? tracks[0].id : ''
+  );
+
+  // State for current beat (for metronome and recording)
+  const [currentBeat, setCurrentBeat] = useState<number>(0);
   
-  const [bpm, setBpm] = useState<number>(initialComposition?.bpm || 120);
-  const [isPlaying, setIsPlaying] = useState<boolean>(false);
-  const [selectedTrackId, setSelectedTrackId] = useState<string>(tracks[0]?.id || '');
-  const [isInitialized, setIsInitialized] = useState<boolean>(false);
+  // State for metronome enabled
+  const [metronomeEnabled, setMetronomeEnabled] = useState<boolean>(true);
   
+  // State for recording
+  const [isRecording, setIsRecording] = useState<boolean>(false);
+
   // Refs for Tone.js objects
-  const metronomeRef = useRef<ToneLoop | null>(null);
-  const synthsRef = useRef<Map<string, ToneAudioNode>>(new Map());
-  const currentBeatRef = useRef<number>(0);
-  
-  // Initialize Tone.js context
+  const synthsRef = useRef<Record<string, any>>({});
+  const effectsRef = useRef<Record<string, any[]>>({});
+
+  // Initialize audio context on mount
   useEffect(() => {
-    const initializeAudio = async () => {
-      try {
-        await initializeToneContext();
-        
-        // Create metronome
-        const metronome = createMetronome(bpm, (time, beat) => {
-          currentBeatRef.current = beat;
-          // Visual metronome update logic will go here
-        });
-        
-        metronomeRef.current = metronome;
-        
-        // Create synths for each track
-        tracks.forEach(track => {
-          const instrumentType = track.instrumentType as InstrumentType;
-          const synth = createSynth(instrumentType);
-          synthsRef.current.set(track.id, synth);
-        });
-        
-        // Set BPM
-        Transport.bpm.value = bpm;
-        
-        setIsInitialized(true);
-      } catch (error) {
-        console.error('Failed to initialize audio:', error);
-      }
-    };
+    if (!isInitialized) {
+      initialize();
+    }
     
-    initializeAudio();
+    // Set initial BPM if provided
+    if (initialComposition?.bpm) {
+      setBpm(initialComposition.bpm);
+    }
     
-    // Cleanup function
+    // Clean up on unmount
     return () => {
-      if (metronomeRef.current) {
-        metronomeRef.current.dispose();
-      }
-      
-      synthsRef.current.forEach(synth => {
-        if (synth.dispose) {
+      // Dispose of all synths
+      Object.values(synthsRef.current).forEach(synth => {
+        if (synth && typeof synth.dispose === 'function') {
           synth.dispose();
         }
       });
       
-      // Only stop transport if audio was successfully initialized
-      if (isInitialized) {
-        stopTransport();
-      }
+      // Dispose of all effects
+      Object.values(effectsRef.current).forEach(effects => {
+        disposeToneResources(effects);
+      });
     };
-  }, []);
-  
-  // Update BPM when it changes
+  }, [initialize, isInitialized, initialComposition, setBpm]);
+
+  // Create synths for tracks
   useEffect(() => {
-    if (isInitialized) {
-      Transport.bpm.value = bpm;
-    }
-  }, [bpm, isInitialized]);
-  
+    // Create synths for tracks that don't have one
+    tracks.forEach(track => {
+      if (!synthsRef.current[track.id]) {
+        synthsRef.current[track.id] = createSynth(track.instrumentType as InstrumentType);
+      }
+    });
+    
+    // Dispose of synths for tracks that no longer exist
+    Object.keys(synthsRef.current).forEach(trackId => {
+      if (!tracks.find(track => track.id === trackId)) {
+        if (synthsRef.current[trackId] && typeof synthsRef.current[trackId].dispose === 'function') {
+          synthsRef.current[trackId].dispose();
+        }
+        delete synthsRef.current[trackId];
+      }
+    });
+  }, [tracks]);
+
   // Handle play/stop
-  const handlePlayStop = async () => {
+  const handlePlayStop = useCallback(() => {
     if (!isInitialized) {
       console.warn('Cannot play/stop: Audio context not initialized');
       return;
     }
     
-    try {
-      if (isPlaying) {
-        stopTransport();
-        if (metronomeRef.current) {
-          metronomeRef.current.stop();
-        }
-        setIsPlaying(false);
-      } else {
-        if (metronomeRef.current) {
-          metronomeRef.current.start(0);
-        }
-        startTransport();
-        setIsPlaying(true);
-      }
-    } catch (error) {
-      console.error('Error in play/stop:', error);
-      // Reset the playing state if an error occurs
-      setIsPlaying(false);
+    if (isPlaying) {
+      stop();
+      setIsRecording(false);
+    } else {
+      play();
     }
-  };
-  
+  }, [isInitialized, isPlaying, play, stop]);
+
   // Handle BPM change
-  const handleBpmChange = (newBpm: number) => {
+  const handleBpmChange = useCallback((newBpm: number) => {
     setBpm(newBpm);
-  };
-  
+  }, [setBpm]);
+
   // Handle track selection
-  const handleTrackSelect = (trackId: string) => {
+  const handleTrackSelect = useCallback((trackId: string) => {
     setSelectedTrackId(trackId);
-  };
-  
+  }, []);
+
   // Handle track mute toggle
-  const handleTrackMute = (trackId: string, muted: boolean) => {
-    setTracks(prevTracks => 
-      prevTracks.map(track => 
-        track.id === trackId ? { ...track, muted } : track
+  const handleTrackMuteToggle = useCallback((trackId: string) => {
+    setTracks(prevTracks =>
+      prevTracks.map(track =>
+        track.id === trackId ? { ...track, muted: !track.muted } : track
       )
     );
-    
-    // Mute the corresponding synth
-    const synth = synthsRef.current.get(trackId);
-    if (synth) {
-      // @ts-ignore - Tone.js typings don't include mute property on all synths
-      synth.volume.value = muted ? -Infinity : 0;
-    }
-  };
-  
-  // Handle note add/edit/delete
-  const handleNotesChange = (trackId: string, notes: Note[]) => {
-    setTracks(prevTracks => 
-      prevTracks.map(track => 
+  }, []);
+
+  // Handle notes change
+  const handleNotesChange = useCallback((trackId: string, notes: Note[]) => {
+    setTracks(prevTracks =>
+      prevTracks.map(track =>
         track.id === trackId ? { ...track, notes } : track
       )
     );
-  };
-  
-  // Handle save
-  const handleSave = () => {
+  }, []);
+
+  // Handle adding a new track
+  const handleAddTrack = useCallback((instrumentType: InstrumentType) => {
+    const newTrack: Track = {
+      id: uuidv4(),
+      instrumentType,
+      notes: [],
+      volume: 0.8,
+      muted: false,
+    };
+    
+    setTracks(prevTracks => [...prevTracks, newTrack]);
+    setSelectedTrackId(newTrack.id);
+  }, []);
+
+  // Handle removing a track
+  const handleRemoveTrack = useCallback((trackId: string) => {
+    setTracks(prevTracks => prevTracks.filter(track => track.id !== trackId));
+    
+    // If the selected track is removed, select another one
+    if (selectedTrackId === trackId) {
+      setSelectedTrackId(tracks.find(track => track.id !== trackId)?.id || '');
+    }
+    
+    // Dispose of the synth
+    if (synthsRef.current[trackId] && typeof synthsRef.current[trackId].dispose === 'function') {
+      synthsRef.current[trackId].dispose();
+    }
+    delete synthsRef.current[trackId];
+    
+    // Dispose of effects
+    if (effectsRef.current[trackId]) {
+      disposeToneResources(effectsRef.current[trackId]);
+    }
+    delete effectsRef.current[trackId];
+  }, [selectedTrackId, tracks]);
+
+  // Handle saving the composition
+  const handleSave = useCallback(() => {
     if (onSave) {
       const composition: Composition = {
         userId,
         tracks,
-        bpm
+        bpm,
       };
       onSave(composition);
     }
-  };
-  
+  }, [userId, tracks, bpm, onSave]);
+
+  // Handle metronome beat
+  const handleMetronomeBeat = useCallback((beat: number) => {
+    setCurrentBeat(beat);
+  }, []);
+
+  // Handle effects change
+  const handleEffectsChange = useCallback((trackId: string, effects: any[]) => {
+    effectsRef.current[trackId] = effects;
+  }, []);
+
+  // Handle recording toggle
+  const handleRecordingToggle = useCallback(() => {
+    setIsRecording(prev => !prev);
+  }, []);
+
   // Get the selected track
   const selectedTrack = tracks.find(track => track.id === selectedTrackId);
-  
-  // Render the appropriate editor based on the selected track type
+
+  // Render the appropriate editor for the selected track
   const renderTrackEditor = () => {
-    if (!selectedTrack) return null;
-    
-    // For drum tracks, use the DrumGrid component
+    if (!selectedTrack) {
+      return <div className="p-4 text-gray-500">No track selected</div>;
+    }
+
+    // For drum tracks, render the drum grid
     if (selectedTrack.instrumentType === InstrumentType.MEMBRANE_SYNTH) {
       return (
         <DrumGrid
           track={selectedTrack}
-          isPlaying={isPlaying}
-          currentBeat={currentBeatRef.current}
           onNotesChange={(notes) => handleNotesChange(selectedTrack.id, notes)}
+          isPlaying={isPlaying}
+          currentBeat={currentBeat}
         />
       );
     }
     
-    // For all other tracks, use the PianoRoll component
+    // For piano-like instruments, render the piano component
+    if ([InstrumentType.SYNTH, InstrumentType.FM_SYNTH, InstrumentType.AM_SYNTH].includes(
+      selectedTrack.instrumentType as InstrumentType
+    )) {
+      return (
+        <Piano
+          track={selectedTrack}
+          onNotesChange={(notes) => handleNotesChange(selectedTrack.id, notes)}
+          isRecording={isRecording}
+          currentBeat={currentBeat}
+        />
+      );
+    }
+    
+    // For all other tracks, render the piano roll
     return (
       <PianoRoll
         track={selectedTrack}
-        isPlaying={isPlaying}
-        currentBeat={currentBeatRef.current}
         onNotesChange={(notes) => handleNotesChange(selectedTrack.id, notes)}
+        isPlaying={isPlaying}
+        currentBeat={currentBeat}
       />
     );
   };
-  
+
   return (
-    <div className="flex flex-col w-full h-full bg-gray-900 text-white rounded-lg overflow-hidden">
-      <div className="p-4 border-b border-gray-700">
-        <h2 className="text-xl font-bold">Digital Audio Workstation</h2>
-        <p className="text-sm text-gray-400">Create your 8-bar masterpiece</p>
+    <div className="bg-white rounded-lg shadow-md p-4">
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-xl font-bold">Beat Maker</h2>
+        <div className="flex items-center space-x-4">
+          <Metronome 
+            enabled={metronomeEnabled} 
+            onBeat={handleMetronomeBeat} 
+          />
+          <button
+            onClick={() => setMetronomeEnabled(prev => !prev)}
+            className={`px-3 py-1 rounded-md ${
+              metronomeEnabled ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700'
+            }`}
+          >
+            {metronomeEnabled ? 'Metronome On' : 'Metronome Off'}
+          </button>
+          <button
+            onClick={handleRecordingToggle}
+            className={`px-3 py-1 rounded-md ${
+              isRecording ? 'bg-red-500 text-white' : 'bg-gray-200 text-gray-700'
+            }`}
+            disabled={!isPlaying}
+          >
+            {isRecording ? 'Recording' : 'Record'}
+          </button>
+        </div>
       </div>
       
-      <div className="flex flex-1 overflow-hidden">
-        {/* Track List */}
-        <div className="w-64 border-r border-gray-700 overflow-y-auto">
-          <TrackList 
+      <div className="grid grid-cols-12 gap-4">
+        {/* Track list */}
+        <div className="col-span-3">
+          <TrackList
             tracks={tracks}
             selectedTrackId={selectedTrackId}
             onTrackSelect={handleTrackSelect}
-            onTrackMute={handleTrackMute}
+            onTrackMute={handleTrackMuteToggle}
           />
+          
+          {/* Add track button */}
+          {!readOnly && (
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Add Track
+              </label>
+              <div className="flex">
+                <select
+                  className="flex-1 p-2 border border-gray-300 rounded-l-md"
+                  onChange={(e) => handleAddTrack(e.target.value as InstrumentType)}
+                  value=""
+                >
+                  <option value="" disabled>
+                    Select instrument...
+                  </option>
+                  {DEFAULT_INSTRUMENTS.map((instrument) => (
+                    <option key={instrument.type} value={instrument.type}>
+                      {instrument.name}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => handleAddTrack(InstrumentType.SYNTH)}
+                  className="bg-blue-500 text-white px-4 rounded-r-md"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+          )}
+          
+          {/* Effects panel */}
+          {selectedTrack && (
+            <div className="mt-4">
+              <EffectsPanel
+                trackId={selectedTrack.id}
+                synth={synthsRef.current[selectedTrack.id]}
+                onEffectsChange={(effects) => handleEffectsChange(selectedTrack.id, effects)}
+              />
+            </div>
+          )}
         </div>
         
-        {/* Piano Roll / Grid */}
-        <div className="flex-1 overflow-auto">
+        {/* Track editor */}
+        <div className="col-span-9">
           {renderTrackEditor()}
         </div>
       </div>
       
-      {/* Transport Controls */}
-      <div className="p-4 border-t border-gray-700">
+      {/* Transport controls */}
+      <div className="mt-4">
         <TransportControls
           isPlaying={isPlaying}
           bpm={bpm}
           onPlayStop={handlePlayStop}
           onBpmChange={handleBpmChange}
-          onSave={handleSave}
+          onSave={!readOnly ? handleSave : undefined}
         />
       </div>
     </div>

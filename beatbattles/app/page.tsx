@@ -182,6 +182,14 @@ export default function HomePage() {
             >
               Browse Rooms
             </Button>
+            
+            <Button
+              onClick={() => router.push('/demo')}
+              variant="outline"
+              className="w-full"
+            >
+              Try DAW Demo
+            </Button>
           </div>
         </div>
       </div>
